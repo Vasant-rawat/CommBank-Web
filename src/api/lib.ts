@@ -1,8 +1,9 @@
 import axios from 'axios'
 import { user } from '../data/user'
-import { Goal, Transaction, User } from './types'
+import { Goal, Tag, Transaction, User } from './types'
 
 export const API_ROOT = 'https://fencer-commbank.azurewebsites.net'
+
 
 export async function getUser(): Promise<User | null> {
   try {
@@ -39,6 +40,31 @@ export async function createGoal(): Promise<Goal | null> {
     })
     return response.data
   } catch (error: any) {
+    return null
+  }
+}
+
+const tagCache = new Map<string, Tag>()
+const inFlightTags = new Map<string, Promise<Tag>>()
+
+export async function getTag(tagId: string): Promise<Tag | null> {
+  const cached = tagCache.get(tagId)
+  if (cached !== undefined) return cached
+
+  const inFlight = inFlightTags.get(tagId)
+  if (inFlight !== undefined) return await inFlight
+
+  try {
+    const promise = axios.get(`${API_ROOT}/api/Tag/${tagId}`).then((response) => {
+      const tag: Tag = response.data
+      tagCache.set(tagId, tag)
+      inFlightTags.delete(tagId)
+      return tag
+    })
+    inFlightTags.set(tagId, promise)
+    return await promise
+  } catch (error: any) {
+    inFlightTags.delete(tagId)
     return null
   }
 }

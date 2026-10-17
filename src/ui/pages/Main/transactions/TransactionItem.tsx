@@ -1,7 +1,6 @@
-import axios from 'axios'
 import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { API_ROOT } from '../../../../api/lib'
+import { getTag } from '../../../../api/lib'
 import { Tag, Transaction } from '../../../../api/types'
 import Chip from '../../../components/Chip'
 
@@ -11,23 +10,21 @@ export function TransactionItem(props: Props) {
   const [tags, setTags] = useState<Tag[] | null>(null)
 
   useEffect(() => {
-    async function fetch(tagId: string): Promise<Tag> {
-      const response = await axios.get(`${API_ROOT}/api/Tag/${tagId}`)
-      return response.data
-    }
+    let cancelled = false
 
     async function fetchAll() {
-      const tags: Tag[] = []
-      for (const tagId of props.transaction.tagIds) {
-        const tag = await fetch(tagId)
-        tags.push(tag)
+      const results = await Promise.all(props.transaction.tagIds.map((tagId) => getTag(tagId)))
+      if (!cancelled) {
+        setTags(results.filter((tag): tag is Tag => tag !== null))
       }
-
-      setTags(tags)
     }
 
     fetchAll()
-  })
+
+    return () => {
+      cancelled = true
+    }
+  }, [props.transaction.id])
 
   return (
     <Container>
